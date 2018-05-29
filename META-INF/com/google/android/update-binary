@@ -4,7 +4,7 @@
 
 outfd=/proc/self/fd/$2;
 zipfile="$3";
-zipdir="$(dirname $zipfile)"
+zipdir="$(dirname $zipfile)";
 ps | grep zygote | grep -v grep >/dev/null && bootmode=true || bootmode=false;
 $bootmode || ps -A 2>/dev/null | grep zygote | grep -v grep >/dev/null && bootmode=true;
 
@@ -17,112 +17,27 @@ file_getprop() {
 } 
 
 log() { 
- $bootmode && echo "$@" >> $logfile || echo $@; 
+ $bootmode && { mkdir -p "$moddir"; echo "$@" >> $logfile; } || echo $@; 
 }
 
 abort() { 
-ui_print " ";
-ui_print "FATAL ERROR: $1";
-ui_print "Stopping installation and Uninstalling...";
-uninstall_pack;
-ui_print " ";
-ui_print "Installation failed... Exiting...";
-$bootmode || cat /tmp/recovery.log >> "$logfile"; 
-exit 1;
+  ui_print " ";
+  ui_print "FATAL ERROR: $1";
+  ui_print "Stopping installation and Uninstalling...";
+  uninstall_pack;
+  ui_print " ";
+  ui_print "Installation failed... Exiting...";
+  ui_print "Please provide logs on the Telegram group";
+  $bootmode || cat /tmp/recovery.log >> "$logfile"; 
+  exit 1;
 } 
-
-# Config
-stuff="
-  /system/addon.d/07-nogoolag.sh 
-
-  /system/app/GoogleCalendarSyncAdapter/GoogleCalendarSyncAdapter.apk
-
-  /system/etc/default-permissions/default-permissions.xml
-  /system/etc/default-permissions/opengapps-permissions.xml
-  /system/etc/permissions/com.google.android.maps.xml
-  /system/etc/permissions/com.google.android.media.effects.xml
-  /system/etc/permissions/com.google.widevine.software.drm.xml
-  /system/etc/permissions/privapp-permissions-google.xml
-  /system/etc/preferred-apps/google.xml
-  /system/etc/sysconfig/framework-sysconfig.xml
-  /system/etc/sysconfig/google_build.xml
-  /system/etc/sysconfig/google.xml
-  /system/etc/sysconfig/nogoolag.xml
-  /system/etc/sysconfig/whitelist_com.android.omadm.service.xml
-  
-  /system/framework/com.google.android.maps.jar
-  /system/framework/com.google.android.media.effects.jar
-  /system/framework/com.google.widevine.software.drm.jar
-
-  /system/priv-app/DejaVuLocationService/DejaVuLocationService.apk
-  /system/priv-app/GoogleServicesFramework/GoogleServicesFramework.apk
-  /system/priv-app/LocalGSMNLPBackend/LocalGSMNLPBackend.apk
-  /system/priv-app/LocalWiFiNLPBackend/LocalWiFiNLPBackend.apk
-  /system/priv-app/MozillaUnifiedNLPBackend/MozillaUnifiedNLPBackend.apk
-  /system/priv-app/NominatimNLPBackend/NominatimNLPBackend.apk
-  /system/priv-app/Phonesky/Phonesky.apk
-  /system/priv-app/PrebuiltGmsCore/PrebuiltGmsCore.apk
-"; 
-
-stuff_arch="
-  /system/lib/libjni_latinimegoogle.so
-  /system/lib64/libjni_latinimegoogle.so
-"; 
-
-stuff_sdk="
-  /system/app/GoogleContactsSyncAdapter/GoogleContactsSyncAdapter.apk
-  /system/priv-app/GoogleBackupTransport/GoogleBackupTransport.apk
-"; 
-
-stuff_arch_sdk="
-"; 
-
-# permissions other than the standard which are given
-misc_perms() {
-return 0;
-}
-
-# User config executer
-conf=$(ls "$zipdir/minmicrogconf.sh" || ls "/sdcard/MinMicroG/minmicrogconf.sh") 2>/dev/null;
-if [ -f "$conf" ]; then 
-  ui_print" "; 
-  ui_print "Using user config"; 
-  chown 0:0 "$conf"; 
-  chmod 0777 "$conf"; 
-  . "$conf" || log "Could not execute user config $conf"; 
-fi;
-
-# Other zip stuff that shouldn't be changed by a user
-ver=1.4;
-date="May, 16th 2018";
-minsdk=19;
-
-perm_dirs=" 
-  /system/addon.d 
-  /system/app
-  /system/etc
-  /system/framework
-  /system/lib
-  /system/lib64
-  /system/priv-app
-"; 
-
-stuff_uninstall="$stuff $stuff_arch $stuff_sdk $stuff_arch_sdk";
 
 ui_print " ";
 ui_print "--     Minimal MicroG Installer     --";
 ui_print "-- The Essentials only MicroG pack  --";
-ui_print "--     by @MOVZX and @FatherJony    --";
-ui_print " ";
-ui_print "Package version: $ver";
-ui_print "Release date: $date";
-
+ui_print "--  From the MicroG Telegram group  --";
+ui_print "--       No, not the Nazi one       --";
 modname="MinMicroG";
-filedir="$dev/tmp/$modname";
-moddir="/sdcard/$modname";
-tmplibdir="$filedir/tmplibdir";
-backupdir="$moddir/Backup";
-logfile="$moddir/$modname-$(date +%Y%m%d%H%M%S).log";
 
 # The stuff below is just related with mounting 
 ui_print " "; 
@@ -151,7 +66,7 @@ suimg=$(ls /data/$adb/magisk_merge.img || ls /data/$adb/magisk.img || ls /cache/
 mnt=$devtmp/$(basename $suimg .img);
 if [ "$suimg" ]; then
   umount $mnt;
-  test ! -e $mnt && mkdir -p $mnt;
+  test ! -e $mnt && mkdir -p "$mnt";
   mount -t ext4 -o rw,noatime $suimg $mnt;
   for i in 0 1 2 3 4 5 6 7; do
     test "$(mount | grep " $mnt ")" && break;
@@ -166,94 +81,103 @@ else
   mount /system;
   mount -o rw,remount /system;
   mount -o rw,remount /system /system;
-  root="$sysroot";
+  root="/$sysroot";
 fi;
 
-test "$root" || abort "Root not found";
-test -f "$sysroot/system/build.prop" || abort "You do not have a ROM"; 
+test -f "/$sysroot/system/build.prop" || abort "Could not find a ROM in $sysroot"; 
+test "$root" || abort "Could not find a root";
+
+filedir="$dev/tmp/$modname";
+moddir="/data/media/0/$modname";
+tmplibdir="$filedir/tmplibdir";
+backupdir="$moddir/Backup";
+logfile="$moddir/$modname-$(date +%Y%m%d%H%M%S).log";
+
+# Extracts the default configuration (in case of uninstall)
+mkdir -p "$filedir";
+unzip -oq "$zipfile" "defminconf.sh" -d "$filedir/";
+[ -f "$filedir/defminconf.sh" ] || abort "Could not find a default config";
+chown 0:0 "$filedir/defminconf.sh"; 
+chmod 0777 "$filedir/defminconf.sh"; 
+. "$filedir/defminconf.sh" || abort "Could not execute default config";
+
+ui_print " ";
+ui_print "$variant Package";
+ui_print "Version: $ver";
+ui_print "Release date: $date";
 
 # zip name having uninstall will cause uninstall
 case $(basename "$zipfile") in
-  *uninstall*|*Uninstall*) action=uninstallation;;
-  *) action=installation;;
+  *uninstall*|*Uninstall*|*UNINSTALL*) 
+    action=uninstallation;
+  ;;
+  *) 
+    action=installation;
+  ;;
 esac;
 
 # zip name having system will cause system install
 case $(basename "$zipfile") in
-  *system*) 
+  *system*|*System*|*SYSTEM*) 
     mount /system;
     mount -o rw,remount /system;
     mount -o rw,remount /system /system;
-    root="$sysroot";
+    root="/$sysroot";
     ui_print " "; 
     ui_print "WARNING: Forcing a system $action!"; 
   ;;
 esac;
 
+# Check if installation involves Magisk
 case $root in 
   *magisk*) 
     magisk=yes;
   ;;
 esac;
 
-# zip name having bloat will cause no debloating
-case $(basename "$zipfile") in
-  *bloat*) debloat=nope;; 
-  *) 
-    if [ "$bootmode" == "true" ]; then
-      debloat=nope;
-    else 
-      debloat=yes;
-      mount /system;
-      mount -o rw,remount /system;
-      mount -o rw,remount /system /system;
-    fi;
-  ;;
-esac;
-
-# zip name having backup will cause backup of bloat
-case $(basename "$zipfile") in
-  *backup*) backup=yes;;
-  *) backup=nope;;
-esac;
-
 # arches are: arm, arm64, x86, x86_64, mips, mips64
 abi=`getprop ro.product.cpu.abi`;
 case $abi in
-  arm*|x86*|mips*) ;;
-  *) abi=`file_getprop /default.prop ro.product.cpu.abi`;;
+  arm*|x86*|mips*) 
+  ;;
+  *) 
+    abi=`file_getprop /default.prop ro.product.cpu.abi`;
+  ;;
 esac;
 case $abi in
-  arm*|x86*|mips*) ;;
-  *) abi=`file_getprop $sysroot/system/build.prop ro.product.cpu.abi`;;
+  arm*|x86*|mips*) 
+  ;;
+  *) 
+    abi=`file_getprop $sysroot/system/build.prop ro.product.cpu.abi`;
+  ;;
 esac;
 case $abi in
   arm64*) 
     arch=arm64;
-    lib_arches="arm64-v8a armeabi-v7a armeabi"; 
+    libarches="arm64-v8a armeabi-v7a armeabi"; 
   ;;
   arm*) 
     arch=arm;
-    lib_arches="armeabi-v7a armeabi";
+    libarches="armeabi-v7a armeabi";
   ;;
   x86_64*) 
     arch=x86_64;
-    lib_arches="x86_64 x86 armeabi-v7a armeabi";
+    libarches="x86_64 x86 armeabi-v7a armeabi";
   ;;
   x86*) 
     arch=x86;
-    lib_arches="x86 armeabi-v7a armeabi";
+    libarches="x86 armeabi-v7a armeabi";
   ;;
   mips64*) 
     arch=mips64;
-    lib_arches="mips64 mips";
+    libarches="mips64 mips";
   ;;
   mips*) 
     arch=mips;
-    lib_arches="mips";
+    libarches="mips";
   ;;
   *) 
-    abort "Unknown architecture: $abi"
+    abort "Could not recognise architecture: $abi";
   ;;
 esac;
 ui_print " ";
@@ -261,7 +185,7 @@ ui_print "Using architecture: $arch";
 
 # sdk is kinda obvious...
 sdk=$(file_getprop $sysroot/system/build.prop ro.build.version.sdk); 
-test $sdk || abort "SDK not found";
+test $sdk || abort "Could not find SDK";
 ui_print "Using SDK level: $sdk";
 if [ "$sdk" -lt $minsdk ]; then
   ui_print " ";
@@ -273,35 +197,38 @@ log "MinMicroG Installer";
 log " ";
 log "Zip File is $zipfile";
 log "Bootmode is $bootmode";
-log "Are we debloating? $debloat";
-log "Are we backing up? $backup";
 
+# Tests if installer has that object, installs in correct location depending upon android, and calls for lib installation if APK
 install() { 
   object="$1"; 
-  dest_object="$2";
-  test -f "$object" || { log "ERROR: $object not found"; return 0; }
-  uninstall "$dest_object"; 
-  mkdir -p "$(dirname $dest_object)"; 
-  mv -f "$object" "$dest_object"; 
-  test -f "$dest_object" || abort "$dest_object not installed";
-  case "$dest_object" in 
+  destobject="$2";
+  test -f "$object" || { log "ERROR: Object not found ($object)"; return 0; }
+  if [ "$sdk" -lt 21 ]; then
+    [ "$(basename $(dirname $destobject)).apk" == "$(basename $destobject)" ] && destobject="$(dirname $(dirname $destobject))/$(basename $destobject)";
+  fi;
+  uninstall "$destobject"; 
+  mkdir -p "$(dirname $destobject)"; 
+  mv -f "$object" "$destobject"; 
+  test -f "$destobject" || abort "Could not install $destobject";
+  case "$destobject" in 
     *.apk) 
-      install_lib "$dest_object"; 
+      install_lib "$destobject"; 
     ;;
   esac;
-  log "INSTALLER: $object installed";
+  log "INSTALLER: Object installed ($object to $destobject)";
 } 
 
+# Checks if APK has libs, and installs correct ones if present
 install_lib() {
   libobject="$1";
   rm -rf "$tmplibdir";
   mkdir -p "$tmplibdir";
   unset srcdir; 
-  unzip -lq "$libobject" | grep lib/ | grep -v grep >/dev/null || { log "INSTALLER: $libobject does not have libs"; return 0; }
+  unzip -lq "$libobject" | grep lib/ | grep -v grep >/dev/null || { log "INSTALLER: Object does not have libs ($libobject)"; return 0; }
   unzip -oq "$libobject" "lib/*" -d "$tmplibdir";
   if [ -d "$tmplibdir/lib" ]; then 
-    log "INSTALLER: $libobject has libs";
-    for archlib in $lib_arches; do
+    log "INSTALLER: Object has libs ($libobject)";
+    for archlib in $libarches; do
       if [ -d "$tmplibdir/lib/$archlib" ]; then
         srcdir="$tmplibdir/lib/$archlib";
         break;
@@ -310,57 +237,58 @@ install_lib() {
     if [ -d "$srcdir" ]; then
       case "$srcdir" in
         *arm64*) 
-          log "INSTALLER: installing arm64 libs for $libobject";
+          log "INSTALLER: Installing arm64 libs ($libobject)";
           lib_dir=lib64;
-          lib_arch=arm64; 
+          libarch=arm64; 
         ;;
         *arm*) 
-          log "INSTALLER: installing arm libs for $libobject";
+          log "INSTALLER: Installing arm libs ($libobject)";
           lib_dir=lib;
-          lib_arch=arm; 
+          libarch=arm; 
         ;;
         *x86_64*) 
-          log "INSTALLER: installing x86_64 libs for $libobject";
+          log "INSTALLER: Installing x86_64 libs ($libobject)";
           lib_dir=lib64;
-          lib_arch=x86_64; 
+          libarch=x86_64; 
         ;;
         *x86*) 
-          log "INSTALLER: installing x86 libs for $libobject";
+          log "INSTALLER: Installing x86 libs ($libobject)";
           lib_dir=lib;
-          lib_arch=x86; 
+          libarch=x86; 
         ;; 
         *mips64*) 
-          log "INSTALLER: installing mips64 libs for $libobject";
+          log "INSTALLER: Installing mips64 libs ($libobject)";
           lib_dir=lib64;
-          lib_arch=mips64; 
+          libarch=mips64; 
         ;; 
         *mips*) 
-          log "INSTALLER: installing mips libs for $libobject";
+          log "INSTALLER: Installing mips libs ($libobject)";
           lib_dir=lib;
-          lib_arch=mips; 
+          libarch=mips; 
         ;; 
       esac;
       if [ "$sdk" -lt 21 ]; then
-        lib_dest="$(dirname $(dirname $(dirname $libobject)))/$lib_dir";
+        libdest="$(dirname $(dirname $libobject))/$lib_dir";
       else 
-        lib_dest="$(dirname $libobject)/lib/$lib_arch";
+        libdest="$(dirname $libobject)/lib/$libarch";
       fi;
-      mkdir -p "$lib_dest";
+      mkdir -p "$libdest";
       for lib in $srcdir/lib*.so; do 
-        cp "$lib" "$lib_dest/"; 
-        test -f "$lib" || abort "Installing $lib for $libobject failed"; 
-        log "INSTALLER: Installed $lib to $lib_dest";
+        mv -f "$lib" "$libdest/$(basename $lib)"; 
+        test -f "$libdest/$(basename $lib)" || abort "Could not Install $lib for $libobject"; 
+        log "INSTALLER: Installed library ($lib to $libdest)";
       done; 
     else 
-      log "INSTALLER: Could not find libs for $arch in $libobject"; 
+      log "INSTALLER: Could not find libs for $arch ($libobject)"; 
       return 0;
     fi; 
   else 
-    abort "Failed to unzip APK $libobject";
+    abort "Could not unzip APK $libobject";
   fi;
   rm -rf "$tmplibdir";
 }
 
+# Finds all files and directories within input, and sets owners and permissions
 perm_r() {
   dir="$1";
   owner="$2";
@@ -369,39 +297,45 @@ perm_r() {
   fmode="$5";
   test -d "$dir" || return 0;
   for pdir in $(find "$dir" -type d); do
-    chown "$owner":"$group" "$pdir" || abort "Could not set owner $owner:$group on directory $pdir"; 
-    chmod "$dmode" "$pdir" || abort "Could not set permissions $dmode on directory $pdir"; 
+    chown "$owner":"$group" "$pdir" || log "Could not set owner $owner:$group on directory $pdir"; 
+    chmod "$dmode" "$pdir" || log "Could not set permissions $dmode on directory $pdir"; 
   done;
   for pfile in $(find "$dir" -type f); do
-    chown "$owner":"$group" "$pfile" || abort "Could not set owner $owner:$group on file $pfile"; 
-    chmod "$fmode" "$pfile" || abort "Could not set permissions $fmode on file $pfile"; 
+    chown "$owner":"$group" "$pfile" || log "Could not set owner $owner:$group on file $pfile"; 
+    chmod "$fmode" "$pfile" || log "Could not set permissions $fmode on file $pfile"; 
   done;
 }
 
+# If present, object is backed up if instructed, and then removed
 remove() { 
   removalobject="$1"; 
   test -f "$removalobject" || return 0; 
   if [ "$backup" == "yes" ]; then 
     mkdir -p "$backupdir/$(dirname $removalobject)"; 
     cp -rf "$removalobject" "$backupdir/$(dirname $removalobject)/"; 
-    test -f "$backupdir/$removalobject" || abort "Object $removalobject not backed up";
-    log "BACKUPER: $removalobject backed up";
+    test -f "$backupdir/$removalobject" || abort "Could not backup $removalobject";
+    log "BACKUPER: Object backed up ($removalobject)";
   fi;
   rm -rf "$removalobject"; 
-  test -f "$removalobject" && abort "Object $removalobject not removed";
-  log "REMOVER: $removalobject removed";
-  [ "$(basename $(dirname $removalobject)).apk" == "$(basename $removalobject)" ] && { log "REMOVER: Removing directory $(dirname $removalobject)"; rm -rf "$(dirname $removalobject)"; }
+  test -f "$removalobject" && log "REMOVER: Object not removed ($removalobject)";
+  log "REMOVER: Object removed ($removalobject)";
+  [ "$(basename $(dirname $removalobject)).apk" == "$(basename $removalobject)" ] && { rm -rf "$(dirname $removalobject)"; log "REMOVER: Removed directory ($(dirname $removalobject))"; }
 } 
 
+# Object is heartlessly removed
 uninstall() { 
   uninstallobject="$1";
+  if [ "$sdk" -lt 21 ]; then
+    [ "$(basename $(dirname $uninstallobject)).apk" == "$(basename $uninstallobject)" ] && uninstallobject="$(dirname $(dirname $uninstallobject))/$(basename $uninstallobject)";
+  fi;
   test -f "$uninstallobject" || return 0; 
-  rm -f "$uninstallobject"; 
-  test -f "$uninstallobject" && log "Object $uninstallobject not uninstalled"; 
-  log "UNINSTALLER: $uninstallobject uninstalled";
-  [ "$(basename $(dirname $uninstallobject)).apk" == "$(basename $uninstallobject)" ] && { log "UNINSTALLER: Removing directory $(dirname $uninstallobject)"; rm -rf "$(dirname $uninstallobject)"; }
+  rm -rf "$uninstallobject"; 
+  test -f "$uninstallobject" && log "UNINSTALLER: Object not uninstalled ($uninstallobject)"; 
+  log "UNINSTALLER: Object uninstalled ($uninstallobject)";
+  [ "$(basename $(dirname $uninstallobject)).apk" == "$(basename $uninstallobject)" ] && { rm -rf "$(dirname $uninstallobject)"; log "UNINSTALLER: Removed directory ($(dirname $uninstallobject))"; }
 } 
 
+# Whole of uninstall action, For calling from abort()
 uninstall_pack() { 
  
   ui_print " ";
@@ -414,7 +348,7 @@ uninstall_pack() {
   done;
 
   if [ "$magisk" == "yes" ]; then
-    rm -rf "$root" || log "ERROR: Could not delete $root";
+    rm -rf "$root" || log "ERROR: Could not delete Magisk root ($root)";
   fi;
 
 }
@@ -422,38 +356,75 @@ uninstall_pack() {
 # Installation logic 
 if [ "$action" == "installation" ]; then
 
+  # Uninstalls old stuff from previous iterations (I'm a responsible person)
+  ui_print " ";
+  ui_print "Uninstalling duplicates...";  
+  for thing in $stuff_uninstall; do
+    uninstall "$root/$thing"; 
+  done;
+
   ui_print " ";
   ui_print "Installing to $root..."; 
+  if [ "$magisk" == "yes" ]; then
+    rm -rf "$root"; 
+  fi;
+  mkdir -p "$root";
+
   ui_print " ";
   ui_print "Extracting files...";
   rm -rf "$filedir";
   mkdir -p "$filedir";
   unzip -oq "$zipfile" -d "$filedir" || abort "Could not unzip $zipfile";
 
-  if [ "$magisk" == "yes" ]; then
-    rm -rf "$root"; 
-  fi;
-  mkdir -p "$root";
+  # Checks if user refused debloating
+  case $(basename "$zipfile") in
+    *bloat*|*Bloat*|*BLOAT*) 
+      log "Not debloating due to user choice";
+    ;; 
+    *) 
+      # NEVER, EVER modify system when it's running
+      if [ "$bootmode" == "true" ]; then
+        log "Not debloating due to bootmode being $bootmode";
+      else 
+        mount /system;
+        mount -o rw,remount /system;
+        mount -o rw,remount /system /system;
+        ui_print " ";
+        ui_print "Debloating...";
+        # Check if user asked for backup
+        case $(basename "$zipfile") in
+          *backup*|*Backup*|*BACKUP*) 
+            backup=yes;
+            ui_print "With backups...";
+          ;;
+        esac;
+        # Check for user debloater
+        if [ -f "$zipdir/mindebloater.sh" ]; then 
+          ui_print " "; 
+          ui_print "Using user debloater"; 
+          cp "$zipdir/mindebloater.sh" "$filedir/";
+          chown 0:0 "$filedir/mindebloater.sh"; 
+          chmod 0777 "$filedir/mindebloater.sh"; 
+          . "$filedir/mindebloater.sh" || log "Could not execute user debloater"; 
+        else 
+          test -f "$filedir/debloater.sh" || { log "Debloater not found"; break; }
+          chown 0:0 "$filedir/debloater.sh";
+          chmod 0777 "$filedir/debloater.sh";
+          . "$filedir/debloater.sh" || log "Could not execute debloater";
+        fi;
+      fi;
+    ;;
+  esac;
 
-  if [ "$debloat" == "yes" ]; then 
-    ui_print " ";
-    ui_print "Debloating...";
-    if [ "$backup" == "yes" ]; then
-      ui_print "With backups...";
-    fi;
-    if [ -f "$zipdir/mindebloater.sh" ]; then 
-      ui_print " "; 
-      ui_print "Using user debloater"; 
-      cp "$zipdir/mindebloater.sh" "$filedir/";
-      chown 0:0 "$filedir/mindebloater.sh"; 
-      chmod 0777 "$filedir/mindebloater.sh"; 
-      . "$filedir/mindebloater.sh" || log "Could not execute user debloater"; 
-    else 
-      test -f "$filedir/debloater.sh" || { log "Debloater not found"; break; }
-      chown 0:0 "$filedir/debloater.sh";
-      chmod 0777 "$filedir/debloater.sh";
-      . "$filedir/debloater.sh" || log "Could not execute debloater";
-    fi;
+  # User config executer
+  conf=$(ls "$zipdir/minmicrogconf.sh" || ls "$moddir/minmicrogconf.sh") 2>/dev/null;
+  if [ -f "$conf" ]; then 
+    ui_print " "; 
+    ui_print "Using user config"; 
+    cp "$conf" "$filedir/";
+    chown 0:0 "$filedir/minmicrogconf.sh"; 
+    chmod 0777 "$filedir/minmicrogconf.sh"; 
+    . "$filedir/minmicrogconf.sh" || log "Could not execute user config ($conf)"; 
   fi;
 
   ui_print " ";
@@ -486,6 +457,7 @@ if [ "$action" == "installation" ]; then
   ui_print " ";
   ui_print "Setting permissions...";
 
+  # Magisk is safe to be fully permed, but system is risky. So selective dirs
   if [ "$magisk" == "yes" ]; then
     perm_r "$root" 0 0 0755 0644;
   else
@@ -496,6 +468,7 @@ if [ "$action" == "installation" ]; then
   
   misc_perms;
 
+  # Magisk stuff
   if [ "$magisk" == "yes" ]; then
     cp -f "$filedir/module.prop" "$root/" || abort "Could not copy module.prop to $root";
     touch "$root/auto_mount" || abort "Could not create auto_mount in $root";
