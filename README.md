@@ -1,5 +1,5 @@
 # Minimal MicroG Installer
-### By @MOVZX and @FatherJony
+### By @MOVZX and @FatherJony and @ShaneTheAwesome (on Telegram)
 *A simple, flexible MicroG Installer with just the essentials*
 
 ### Links
@@ -21,6 +21,7 @@ The things included in this zip are:
 
 For support, Provide logs from /sdcard/MinMicroG (they are stamped with flash time in YYYYMMDDHHMMSS)
 Additionally, if you used Magisk Manager, provide its logs too.
+Playstore may not work on first boot, so you may have to double check MicroG and reboot.
 
 How to control the zip by changing its name:
 NOTE: Control by name is not possible in magisk manager, since it copies zip to a cache directory and renames it install.zip. This is unavoidable behaviour.
@@ -28,6 +29,7 @@ NOTE: Control by name is not possible in magisk manager, since it copies zip to 
 1. Add 'system' to its filename to force it to install/uninstall from system. Otherwise, it looks for magisk, and if not found, installs to system. Obviously, if you flash it through Magisk manager, you want to install it to Magisk. If not, you have to flash through recovery.
 
 2. Add 'uninstall' to its filename to uninstall it from your device, whether in magisk mode or system mode. If you use Magisk Manager, your preffered method of uninstallation is from there.
+
 3. Add 'bloat' to its filename to disable debloating of Google apps. Debloating is already disabled if you flash from Magisk manager.
 
 4. Add 'backup' to the filename to make it backup the bloatware before removing it. Debloating does not occure in Magisk, so this is irrelevant.
@@ -39,4 +41,4 @@ NOTE: Control by name is not possible in magisk manager, since it copies zip to 
 Just rename it and flash it again for the intended effect.
 
 Thanls to @osm0sis for the base magisk/recovery code. You're awesome.
-Thanks to @Setiaplha, the creator of NanoDroid, for the lib installation code.
+Thanks to @Setialpha, the creator of NanoDroid, and ale5000 for the lib installation code and permissions code.
