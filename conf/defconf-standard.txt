@@ -1,9 +1,9 @@
 # Config
 
 variant="Standard"
-ver="2.3";
-verc="230"
-date="14th September, 2018";
+ver="2.4-MAYBE";
+verc="240"
+date="27th September, 2019";
 minsdk=19;
 
 modprop="id=MinMicroG
@@ -14,20 +14,25 @@ author=MOVZX and FatherJony and FriendlyNeighborhoodShane
 description=A Minimal MicroG installer with just the essentials
 support=https://t.me/joinchat/FyFlS0X2D7f6YNvdxhEsfw
 donate=
-minMagisk=1530
+minMagisk=1900
 ";
 
 stuff="
+  /system/app/AppleNLPBackend/AppleNLPBackend.apk
+  /system/app/AuroraDroid/AuroraDroid.apk
   /system/app/DejaVuNLPBackend/DejaVuNLPBackend.apk
-  /system/app/FDroid/FDroid.apk
   /system/app/LocalGSMNLPBackend/LocalGSMNLPBackend.apk
   /system/app/LocalWiFiNLPBackend/LocalWiFiNLPBackend.apk
   /system/app/MicroGGSFProxy/MicroGGSFProxy.apk
   /system/app/MozillaUnifiedNLPBackend/MozillaUnifiedNLPBackend.apk
   /system/app/NominatimNLPBackend/NominatimNLPBackend.apk
+  /system/app/RadioCellsNLPBackend/RadioCellsNLPBackend.apk
 
   /system/etc/default-permissions/microg-permissions.xml
-  /system/etc/permissions/org.fdroid.fdroid.privileged.xml
+  /system/etc/permissions/com.android.vending.xml
+  /system/etc/permissions/com.aurora.services.xml
+  /system/etc/permissions/com.google.android.backuptransport.xml
+  /system/etc/permissions/com.google.android.gms.xml
   /system/etc/permissions/com.google.android.maps.xml
   /system/etc/permissions/com.google.android.media.effects.xml
   /system/etc/permissions/com.google.widevine.software.drm.xml
@@ -37,7 +42,7 @@ stuff="
   /system/framework/com.google.android.media.effects.jar
   /system/framework/com.google.widevine.software.drm.jar
 
-  /system/priv-app/FDroidPrivileged/FDroidPrivileged.apk
+  /system/priv-app/AuroraServices/AuroraServices.apk
   /system/priv-app/MicroGDroidGuard/MicroGDroidGuard.apk
   /system/priv-app/MicroGGMSCore/MicroGGMSCore.apk
   /system/priv-app/PatchPhonesky/PatchPhonesky.apk
@@ -59,16 +64,20 @@ stuff_arch_sdk="
 ";
 
 stuff_other="
+  /system/app/AuroraStore/AuroraStore.apk
   /system/etc/default-permissions/aurora-permissions.xml
-  /system/priv-app/AuroraStore/AuroraStore.apk
   /system/priv-app/FakeStore/FakeStore.apk
   /system/priv-app/MicroGUNLP/MicroGUNLP.apk
 ";
 
 stuff_old="
   /system/addon.d/01-nogoolag.sh
+  /system/app/FDroid/FDroid.apk
+  /system/etc/permissions/org.fdroid.fdroid.privileged.xml
+  /system/priv-app/AuroraStore/AuroraStore.apk
   /system/priv-app/DejaVuLocationService/DejaVuLocationService.apk
   /system/priv-app/DejaVuNLPBackend/DejaVuNLPBackend.apk
+  /system/priv-app/FDroidPrivileged/FDroidPrivileged.apk
   /system/priv-app/LocalGSMNLPBackend/LocalGSMNLPBackend.apk
   /system/priv-app/LocalWiFiNLPBackend/LocalWiFiNLPBackend.apk
   /system/priv-app/MicroGGSFProxy/MicroGGSFProxy.apk
@@ -172,8 +181,14 @@ log() { echo "$1"; }
 log " ";
 log "=== MinMicroG addon.d script ===";
 
-[ -f "/system/system/build.prop" ] && sysroot="/system";
-sdk="$(grep ro.build.version.sdk "$sysroot/system/build.prop" | head -n1 | cut -d= -f2)";
+[ -e "/system_root" ] && {
+  mount -o ro /system_root;
+  sysroot="system_root";
+} || {
+  mount -o ro /system;
+  [ -e "/system/system/build.prop" ] && sysroot="system";
+}
+sdk="$(grep ro.build.version.sdk "/$sysroot/system/build.prop" | head -n1 | cut -d= -f2)";
 backupdir="/data/media/0/MinMicroG/backups";
 [ "$C" ] && tmpdir="$C" || tmpdir="/tmp/backupdir";
 
@@ -209,14 +224,14 @@ case "$1" in
     log " ";
     log "Backing up...";
     save_files | while read object dummy; do
-      move "$sysroot/$object" "$tmpdir/$object";
+      move "/$sysroot/$object" "$tmpdir/$object";
     done;
   ;;
   restore)
     log " ";
     log "Restoring...";
     save_files | while read object dummy; do
-      move "$tmpdir/$object" "$sysroot/$object";
+      move "$tmpdir/$object" "/$sysroot/$object";
     done;
   ;;
   post-restore)
@@ -224,7 +239,7 @@ case "$1" in
     log "Debloating...";
     mount /data;
     delete_files | while read object dummy; do
-      move "$sysroot/$object" "$backupdir/$object";
+      move "/$sysroot/$object" "$backupdir/$object";
     done;
     [ -d "$backupdir" ] && { perm_r 1023 1023 775 664 "$backupdir"; chcon -hR "u:object_r:media_rw_data_file:s0" "$backupdir"; }
   ;;

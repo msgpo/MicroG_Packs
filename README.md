@@ -11,30 +11,32 @@ This is a simple MicroG installer. It can install MicroG into your system partit
 It contains an unofficial fork of MicroG (GMSCore, GSFProxy, Droidguard) (Compiled by MOVZX) with bumped version numbers so that apps don't complain about updating playstore.
 
 The things included in the Standard Edition zip are:
--MicroG (GMSCore, GSFProxy, Droidguard, Maps APIv1)
--Google Play store (modded for IAPs by Setialpha)
--UNLP backends (Dejá vu, LocalGSM, LocalWiFi, Mozilla, Nominatim)
--FDroid with privileged extension
--Swype libs for AOSP keyboard
--Some Google DRM jars
--Google Sync adapters for KK to O
--Permission files for all of this
--An addon.d file to backup/restore everything on a rom flash
+- MicroG (GMSCore, GSFProxy, Droidguard, Maps APIv1)
+- Google Play store (modded for IAPs by Setialpha)
+- UNLP backends (Dejá vu, LocalGSM, LocalWiFi, Mozilla, Nominatim)
+- AuroraDroid
+- AuroraServices
+- Swype libs for AOSP keyboard
+- Some Google DRM jars
+- Google Sync adapters for KK to O
+- Permission files for all of this
+- An addon.d file to backup/restore everything on a rom flash
 
 The things included in the NoGoolag Edition zip are:
--MicroG (GMSCore, GSFProxy, Droidguard, Maps APIv1)
--FakeStore
--Aurora Store
--FDroid with privileged extension
--UNLP backends (Dejá vu, LocalGSM, LocalWiFi, Mozilla, Nominatim)
--Permission files for all of this
--An addon.d file to backup/restore everything on a rom flash
+- MicroG (GMSCore, GSFProxy, Droidguard, Maps APIv1)
+- FakeStore
+- AuroraStore
+- AuroraDroid
+- AuroraServices
+- UNLP backends (Dejá vu, LocalGSM, LocalWiFi, Mozilla, Nominatim)
+- Permission files for all of this
+- An addon.d file to backup/restore everything on a rom flash
 
 The things included in the UNLP Edition zip are:
--UNLP
--UNLP backends (Dejá vu, LocalGSM, LocalWiFi, Mozilla, Nominatim)
--Permission files for all of this
--An addon.d file to backup/restore everything on a rom flash
+- UNLP
+- UNLP backends (Dejá vu, LocalGSM, LocalWiFi, Mozilla, Nominatim)
+- Permission files for all of this
+- An addon.d file to backup/restore everything on a rom flash
 
 The zip debloats 3 Google apps from your phone (GmsCore, GoogleServicesFramework, Phonesky and their MicroG counterparts) and 4 NLP providers. In Magisk mode, they won't be removed from system, and if you uninstall the pack, they'll come back. If you install in system, the debloated stuff will be stored in internal-storage/MinMicroG/Backup.
 WARNING: This zip does not and never will debloat anything else because that is the minimum coming in MicroG's way. I have had my own share of PTSD with debloating. I believe (through guesswork) that it should work even on flashes over gapped ROMs, but don't take my word for it. Debloat before you flash.
@@ -53,9 +55,9 @@ NOTE: Control by name is not possible in magisk manager, since it copies the zip
 Just rename it and flash it again for the intended effect.
 
 NOTE: 
--MicroG showing wrong signature for Phonesky? Lemme guess... System mode? Dirty flashed? Go to shell and type (ofcourse with su): 
+- MicroG showing wrong signature for Phonesky? Lemme guess... System mode? Dirty flashed? Go to shell and type (ofcourse with su): 
 pm grant com.android.vending android.permission.FAKE_PACKAGE_SIGNATURE
--Dirty flashing not recommended. you'll mess up all your permissions and may even cause conflicts in app data, leading to crashes. 
+- Dirty flashing not recommended. you'll mess up all your permissions and may even cause conflicts in app data, leading to crashes. 
 The maker does not support or endorse dirty flashing. It will harm you and your loved ones. Don't come complaining to me.
 
 Thanks to @osm0sis for the base magisk/recovery code and inspiration and guidance on the majority of the stuff in here. You're awesome.

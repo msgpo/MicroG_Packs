@@ -29,9 +29,7 @@ abort() {
   ui_print "Stopping installation and Uninstalling...";
   uninstall_pack;
   [ -d "$filedir" ] && rm -rf "$filedir";
-  [ "$suimg" ] && umount "$mnt";
-  [ "$loop" ] && losetup -d "$loop";
-  $bootmode || umount /system;
+  $bootmode || { [ "$sysroot" ] && umount /$sysroot || umount /system; }
   sync;
   ui_print " ";
   ui_print "Installation failed!";
@@ -50,10 +48,20 @@ log " ";
 log "Zip File is $zipfile";
 log "Bootmode is $bootmode";
 
-$bootmode || { mount -o ro /system; mount /data; mount /cache; }
-[ -f "/system/system/build.prop" ] && sysroot="/system" || sysroot="";
-[ -f "$sysroot/system/build.prop" ] || abort "Could not find a ROM in /$sysroot";
-for bin in [ awk basename cat chcon chmod chown cp cut df dirname du echo find grep head losetup ls mkdir mount ps rm sed sync tail touch umount unzip; do
+$bootmode || { mount /data; mount /cache; }
+for bb in /magisk/.core/busybox /sbin/.core/busybox /sbin/.magisk/busybox; do
+  [ -e "$bb" ] && magiskbb="$bb";
+done;
+[ "$magiskbb" ] && export PATH="$magiskbb:$PATH";
+[ -e "/system_root" ] && {
+  mount -o ro /system_root;
+  sysroot="system_root";
+} || {
+  mount -o ro /system;
+  [ -e "/system/system/build.prop" ] && sysroot="system";
+}
+[ -f "/$sysroot/system/build.prop" ] || abort "Could not find a ROM in /$sysroot";
+for bin in awk cat chcon chmod chown cp cut df du echo find grep head losetup ls mkdir mount ps rm sed tail touch umount unzip; do
   [ "$(which "$bin")" ] || abort "No $bin available";
 done;
 
@@ -81,7 +89,7 @@ case "$(basename "$zipfile")" in
   ;;
 esac;
 
-abi="$(file_getprop $sysroot/system/build.prop ro.product.cpu.abi)";
+abi="$(file_getprop /$sysroot/system/build.prop ro.product.cpu.abi)";
 case "$abi" in
   arm64*)
     arch=arm64;
@@ -112,7 +120,7 @@ case "$abi" in
   ;;
 esac;
 
-sdk="$(file_getprop $sysroot/system/build.prop ro.build.version.sdk)";
+sdk="$(file_getprop /$sysroot/system/build.prop ro.build.version.sdk)";
 [ "$sdk" ] || abort "Could not find SDK";
 [ "$sdk" -gt 0 ] || abort "Could not recognise SDK: $sdk";
 
@@ -277,13 +285,15 @@ uninstall_pack() {
     for thing in $stuff_uninstall; do
       [ "$thing" ] && uninstall "$root/$thing";
     done;
+    uninstall "$initdfile";
+    uninstall "$addondfile";
     [ "$sysprop" ] && {
       for line in $sysprop; do
-        if [ "$(grep "^$line #$modname" "$sysroot/system/build.prop")" ]; then
-          sed -i "s|^$line #$modname||g" "$sysroot/system/build.prop";
+        if [ "$(grep "^$line #$modname" "/$sysroot/system/build.prop")" ]; then
+          sed -i "s|^$line #$modname||g" "/$sysroot/system/build.prop";
         fi;
-        if [ "$(grep "^#$modname $(echo $line | cut -d= -f1)" "$sysroot/system/build.prop")" ]; then
-          sed -i "s|^#$modname $(echo $line | cut -d= -f1)|$(echo $line | cut -d= -f1)|g" "$sysroot/system/build.prop";
+        if [ "$(grep "^#$modname $(echo $line | cut -d= -f1)" "/$sysroot/system/build.prop")" ]; then
+          sed -i "s|^#$modname $(echo $line | cut -d= -f1)|$(echo $line | cut -d= -f1)|g" "/$sysroot/system/build.prop";
         fi;
       done;
     }
@@ -302,21 +312,6 @@ perm() {
   find "$permobject" -type f -exec chmod $fmod {} +;
 }
 
-mountimg() {
-  [ -d "$mnt" ] && umount "$mnt";
-  [ ! -e "$mnt" ] && mkdir -p "$mnt";
-  mount -t ext4 -o rw,noatime "$suimg" "$mnt";
-  for i in 0 1 2 3 4 5 6 7; do
-    [ "$(mount | grep " $mnt ")" ] && break;
-    loop="/dev/block/loop$i";
-    if [ ! -f "$loop" -o ! -b "$loop" ]; then
-      mknod "$loop" b 7 "$i";
-    fi;
-    losetup "$loop" "$suimg" && mount -t ext4 -o loop,noatime "$loop" "$mnt";
-  done;
-  [ "$(mount | grep " $mnt ")" ] || abort "Could not mount $suimg";
-}
-
 rm -rf "$filedir";
 mkdir -p "$filedir";
 unzip -o "$zipfile" "defconf" -d "$filedir/";
@@ -331,6 +326,7 @@ ui_print "Release date: $date";
 ui_print " ";
 ui_print "Using architecture: $arch";
 ui_print "Using SDK level: $sdk";
+ui_print "Sysroot is on /$sysroot";
 if [ "$sdk" -lt "$minsdk" ]; then
   ui_print " ";
   ui_print "WARNING: Using an old Android";
@@ -339,28 +335,26 @@ fi;
 
 ui_print " ";
 ui_print "Mounting...";
-[ -e /data/adb/magisk ] && adb="adb" || adb="";
-if $bootmode && [ ! -f "/data/$adb/magisk_merge.img" ]; then
-  log "Creating magisk_merge.img due to bootmode";
-  $sysroot/system/bin/make_ext4fs -b 4096 -l 64M "/data/$adb/magisk_merge.img" || $sysroot/system/bin/mke2fs -b 4096 -t ext4 "/data/$adb/magisk_merge.img 64M" || /data/$adb/magisk/magisk imgtool create "/data/$adb/magisk_merge.img" 64M || abort "Could not create magisk_merge.img";
-fi;
-if [ "$forcesys" != "yes" ] && [ -e "/data/$adb/magisk" -a ! -e "/data/$adb/magisk.img" ]; then
-  log "Creating magisk.img due to magisk folder present";
-  $sysroot/system/bin/make_ext4fs -b 4096 -l 64M "/data/$adb/magisk.img" || $sysroot/system/bin/mke2fs -b 4096 -t ext4 "/data/$adb/magisk.img" 64M || /data/$adb/magisk/magisk imgtool create "/data/$adb/magisk.img" 64M;
-fi;
-suimg="$(ls "/data/$adb/magisk_merge.img" || ls "/data/$adb/magisk.img" || ls "/cache/magisk.img")" 2>/dev/null;
-$bootmode && mnt="/dev/tmp/$(basename "$suimg" .img)" || mnt="/tmp/$(basename "$suimg" .img)";
-if [ -f "$suimg" -a "$forcesys" != "yes" ]; then
-  mountimg;
-  root="$mnt/$modname";
+if [ -e "/data/adb/magisk" -a "$forcesys" != "yes" ]; then
+  $bootmode && modulesdir="/data/adb/modules_update" || modulesdir="/data/adb/modules";
+  root="$modulesdir/$modname";
   magisk=yes;
-  log "Mounted $suimg";
+  log "Using $modulesdir";
+  [ -d "$modulesdir" ] || {
+    mkdir -p "$modulesdir";
+    perm 0 0 0755 0644 "$modulesdir";
+  }
 else
-  mount -o rw,remount /system;
-  mount -o rw,remount /system /system;
+  [ "$sysroot" ] && {
+    mount -o rw,remount /$sysroot;
+    mount -o rw,remount /$sysroot /$sysroot;
+  } || {
+    mount -o rw,remount /system;
+    mount -o rw,remount /system /system;
+  }
   root="/$sysroot";
   magisk=no;
-  log "Mounted /system RW";
+  log "Mounted /$sysroot/system RW";
 fi;
 
 if [ "$action" == "installation" ]; then
@@ -374,11 +368,11 @@ if [ "$action" == "installation" ]; then
   log "Debloating";
   if [ "$magisk" == "yes" ]; then
     for thing in $stuff_debloat; do
-      [ "$thing" ] && debloat "$sysroot/$thing" "$root/$thing";
+      [ "$thing" ] && debloat "/$sysroot/$thing" "$root/$thing";
     done;
   else
     for thing in $stuff_debloat; do
-      [ "$thing" ] && remove "$sysroot/$thing" "$backupdir/$thing";
+      [ "$thing" ] && remove "/$sysroot/$thing" "$backupdir/$thing";
     done;
   fi;
   [ -d "$backupdir" ] && { perm 1023 1023 775 664 "$backupdir"; chcon -hR 'u:object_r:media_rw_data_file:s0' "$backupdir"; }
@@ -407,28 +401,11 @@ if [ "$action" == "installation" ]; then
   packsizem="$(($packsize / 1024 + 1))";
   log "Pack size is $packsizem";
   if [ "$magisk" == "yes" ]; then
-    imgusedm="$(($(df -Pk "$(dirname "$root")" | tail -n 1 | awk '{ print $3 }') / 1024 + 1))";
-    imgsizem="$(($(df -Pk "$(dirname "$root")" | tail -n 1 | awk '{ print $2 }') / 1024))";
-    imgreqm="$(($imgusedm + $packsizem))";
-    log "Image used up space is $imgusedm";
-    log "Image size is $imgsizem";
-    log "Required image size is $imgreqm";
-    if [ "$imgsizem" -lt "$imgreqm" ]; then
-      [ "$suimg" ] && umount "$mnt";
-      [ "$loop" ] && losetup -d "$loop";
-      imgnewm=0;
-      until [ "$imgnewm" -gt "$imgreqm" ]; do
-        imgnewm="$(($imgnewm + 32))";
-      done;
-      ui_print " ";
-      ui_print "Resizing Magisk image...";
-      log "Resizing $suimg to $imgnewm MBs";
-      e2fsck -fy "$suimg";
-      resize2fs "$suimg" "$imgnewm"M || /data/$adb/magisk/magisk imgtool resize "$suimg" "$imgnewm"M || abort "Could not resize magisk image";
-      mountimg;
-    fi;
+    datfreem="$(($(df -Pk "/data" | tail -n 1 | awk '{ print $4 }') / 1024))";
+    log "Free data space is $datfreem";
+    [ "$datfreem" -lt "$packsizem" ] && abort "Not enough free space in your data!";
   else
-    sysfreem="$(($(df -Pk "$root/system" | tail -n 1 | awk '{ print $4 }') / 1024))";
+    sysfreem="$(($(df -Pk "/$sysroot/system" | tail -n 1 | awk '{ print $4 }') / 1024))";
     log "Free system space is $sysfreem";
     [ "$sysfreem" -lt "$packsizem" ] && abort "Not enough free space in your system!";
   fi;
@@ -469,11 +446,11 @@ if [ "$action" == "installation" ]; then
     [ "$sysprop" ] && { echo "$sysprop" > "$root/system.prop" || abort "Could not create system.prop in $root"; }
     [ "$modprop" ] && { echo "$modprop" > "$root/module.prop" || abort "Could not create module.prop in $root"; }
     touch "$root/auto_mount" || abort "Could not create auto_mount in $root";
-    if $bootmode && [ "$suimg" == "/data/$adb/magisk_merge.img" ]; then
-      [ -e "/magisk" ] && imgmnt="/magisk" || { [ -e "/sbin/.core/img" ] && imgmnt="/sbin/.core/img" || imgmnt="/sbin/.magisk/img"; }
-      mkdir -p "$imgmnt/$modname";
-      touch "$imgmnt/$modname/update" || abort "Could not create update in $imgmnt/$modname";
-      [ "$modprop" ] && { echo "$modprop" > "$imgmnt/$modname/module.prop" || abort "Could not create module.prop in $imgmnt/$modname"; }
+    if $bootmode && [ "$modulesdir" == "/data/adb/modules_update" ]; then
+      modmnt="/data/adb/modules";
+      mkdir -p "$modmnt/$modname";
+      touch "$modmnt/$modname/update" || abort "Could not create update in $modmnt/$modname";
+      [ "$modprop" ] && { echo "$modprop" > "$modmnt/$modname/module.prop" || abort "Could not create module.prop in $modmnt/$modname"; }
     fi;
   else
     [ "$postfs" ] && { mkdir -p $(dirname "$root/$initdfile"); echo "$postfs" > "$root/$initdfile" || abort "Could not create $initdfile in $root"; }
@@ -481,13 +458,13 @@ if [ "$action" == "installation" ]; then
     [ "$addond" ] && { mkdir -p $(dirname "$root/$addondfile"); echo "$addond" > "$root/$addondfile" || abort "Could not create $addondfile in $root"; }
     [ "$sysprop" ] && {
       for line in $sysprop; do
-        if [ "$(grep "^$line" "$sysroot/system/build.prop")" ]; then
+        if [ "$(grep "^$line" "/$sysroot/system/build.prop")" ]; then
           continue;
         fi;
-        if [ "$(grep "^$(echo $line | cut -d= -f1)" "$sysroot/system/build.prop")" ]; then
-          sed -i "s|^$(echo $line | cut -d= -f1)|#$modname $(echo $line | cut -d= -f1)|g" "$sysroot/system/build.prop";
+        if [ "$(grep "^$(echo $line | cut -d= -f1)" "/$sysroot/system/build.prop")" ]; then
+          sed -i "s|^$(echo $line | cut -d= -f1)|#$modname $(echo $line | cut -d= -f1)|g" "/$sysroot/system/build.prop";
         fi;
-        echo -e "$line #$modname" >> "$sysroot/system/build.prop";
+        echo -e "$line #$modname" >> "/$sysroot/system/build.prop";
       done;
     }
   fi;
@@ -496,7 +473,6 @@ if [ "$action" == "installation" ]; then
   ui_print "Setting permissions...";
   if [ "$magisk" == "yes" ]; then
     find "$root" -maxdepth 1 -exec chmod 0755 {} +;
-    chcon -hR 'u:object_r:system_file:s0' "$root";
   fi;
   for thing in $stuff_perm; do
     case "$thing" in
@@ -507,6 +483,7 @@ if [ "$action" == "installation" ]; then
         perm 0 0 0755 0644 "$root/$thing";
       ;;
     esac;
+    chcon -hR 'u:object_r:system_file:s0' "$root/$thing";
   done;
 
   post_install_actions;
@@ -527,9 +504,7 @@ fi;
 
 ui_print " ";
 ui_print "Unmounting...";
-[ "$suimg" ] && umount "$mnt";
-[ "$loop" ] && losetup -d "$loop";
-$bootmode || umount /system;
+$bootmode || { [ "$sysroot" ] && umount /$sysroot || umount /system; }
 rm -rf "$filedir";
 sync;
 
