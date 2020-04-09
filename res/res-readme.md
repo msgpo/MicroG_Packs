@@ -1,0 +1,1 @@
+Put all binary assets in the system folder here
